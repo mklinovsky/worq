@@ -4,8 +4,8 @@ Git worktrees and per-project setup, in one tool. Built to replace the pile of
 shell aliases: create a worktree from a Jira key, copy the env files across,
 run whatever the project needs, and hand you the path.
 
-Config lives in one central file, gira-style: `[defaults]` plus a list of
-`[[projects]]` matched against the current directory, longest match wins.
+Config lives in one central file: `defaults` plus a list of `projects` matched
+against the current directory, longest match wins.
 
 ## Install
 
@@ -103,7 +103,7 @@ tab/↑↓   move between fields          enter or ctrl+s   save
 
 Tab past the last field to reach the setup steps, where `a` adds, `e` edits,
 `d` deletes, `space` toggles optional, `J`/`K` reorder and `r` restores what was
-detected. A live preview of the TOML sits under the form.
+detected. A live preview of the YAML sits under the form.
 
 Running it again in a repo that is already registered edits that entry rather
 than adding a second one. Saving re-serialises the whole config file, so
@@ -112,35 +112,31 @@ commented example file if that is what you want.
 
 ## Config
 
-`~/.config/worq/config.toml` (override with `$WORQ_CONFIG`).
+`~/.worq/config.yaml`.
 
-```toml
-[defaults]
-worktree_base = "{parent}/{name}-worktrees"
-base_branch = "main"
+```yaml
+defaults:
+  worktree_base: "{parent}/{name}-worktrees"
+  base_branch: main
+  setup:
+    - name: env files
+      copy: [".env", ".env.local"]
 
-[[defaults.setup]]
-name = "env files"
-copy = [".env", ".env.local"]
-
-[[projects]]
-name = "frontend"
-path = "~/Projects/bloomreach/frontend"
-worktree_base = "~/Projects/bloomreach/frontend-worktrees"
-base_branch = "master"
-jira_key = "EFRON"
-
-[[projects.setup]]
-name = "env files"
-copy = [".env", ".env.local"]
-
-[[projects.setup]]
-name = "install"
-run = "pnpm install --prefer-offline"
-optional = true
+projects:
+  - name: frontend
+    path: ~/Projects/bloomreach/frontend
+    worktree_base: ~/Projects/bloomreach/frontend-worktrees
+    base_branch: master
+    jira_key: EFRON
+    setup:
+      - name: env files
+        copy: [".env", ".env.local"]
+      - name: install
+        run: pnpm install --prefer-offline
+        optional: true
 ```
 
-Precedence: CLI flags > matched `[[projects]]` entry > `[defaults]` > built-in.
+Precedence: CLI flags > matched `projects` entry > `defaults` > built-in.
 Paths accept `~`, `$VARS` and `{root}`, `{parent}`, `{name}`.
 
 A project's `setup` list replaces the default list rather than appending, so a
@@ -173,14 +169,6 @@ package can override its parent.
 Used as a picker, `worq ls` prints the path you selected on stdout — the
 interface itself is drawn on stderr, so `tmux new-window -c "$(worq tui)"`
 works.
-
-## Relationship to gira
-
-[gira](https://github.com/mklinovsky/gira) stays in charge of Jira and GitLab:
-creating issues, merge requests, transitions. worq owns the local side —
-worktrees and getting them ready to work in. They share the branch naming
-convention (`efron-1234-slug`), so `gira mr` still derives the issue from a
-branch worq created. The Jira/GitLab commands may move in here later.
 
 ## Development
 

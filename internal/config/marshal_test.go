@@ -22,13 +22,13 @@ func TestMarshalOmitsEmptyFields(t *testing.T) {
 	}
 	out := c.Marshal()
 	for _, want := range []string{
-		`base_branch = "main"`,
-		`[[projects]]`,
-		`jira_key = "EFRON"`,
-		`copy = [".env", ".env.local"]`,
-		`run = "pnpm i"`,
-		`dir = "app"`,
-		"optional = true",
+		"base_branch: main",
+		"projects:",
+		"jira_key: EFRON",
+		"- .env.local",
+		"run: pnpm i",
+		"dir: app",
+		"optional: true",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing %q in:\n%s", want, out)
@@ -48,7 +48,7 @@ func TestMarshalRoundTrips(t *testing.T) {
 		},
 	}
 	dir := t.TempDir()
-	p := filepath.Join(dir, "config.toml")
+	p := filepath.Join(dir, "config.yaml")
 	if err := c.Save(p); err != nil {
 		t.Fatal(err)
 	}
@@ -86,14 +86,10 @@ func TestUpsertReplacesByPath(t *testing.T) {
 	}
 }
 
-func TestQuoteEscapes(t *testing.T) {
+func TestSpecialCharactersRoundTrip(t *testing.T) {
 	c := &Config{Projects: []Project{{Path: `/a"b\c`}}}
-	out := c.Marshal()
-	if !strings.Contains(out, `path = "/a\"b\\c"`) {
-		t.Fatalf("bad escaping: %s", out)
-	}
 	dir := t.TempDir()
-	p := filepath.Join(dir, "c.toml")
+	p := filepath.Join(dir, "c.yaml")
 	if err := c.Save(p); err != nil {
 		t.Fatal(err)
 	}
@@ -108,8 +104,8 @@ func TestQuoteEscapes(t *testing.T) {
 
 func TestMarshalProjectSkipsHeaderComment(t *testing.T) {
 	out := MarshalProject(Project{Name: "a", Path: "/repos/a"})
-	if !strings.HasPrefix(out, "[[projects]]") {
-		t.Fatalf("preview should start at the table, got:\n%s", out)
+	if !strings.HasPrefix(out, "- name: a") {
+		t.Fatalf("preview should start at the entry, got:\n%s", out)
 	}
 	if strings.Contains(out, "#") {
 		t.Fatalf("preview leaked the header comment:\n%s", out)

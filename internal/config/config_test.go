@@ -7,36 +7,32 @@ import (
 )
 
 const sample = `
-[defaults]
-worktree_base = "{parent}/{name}-worktrees"
-base_branch = "main"
-branch_prefix = "feat/"
+defaults:
+  worktree_base: "{parent}/{name}-worktrees"
+  base_branch: main
+  branch_prefix: feat/
+  setup:
+    - name: env
+      copy: [".env"]
 
-[[defaults.setup]]
-name = "env"
-copy = [".env"]
+projects:
+  - path: /repos/app
+    base_branch: master
+    jira_key: APP
+    setup:
+      - name: install
+        run: pnpm i
 
-[[projects]]
-path = "/repos/app"
-base_branch = "master"
-jira_key = "APP"
+  - path: /repos/app/packages/ui
+    worktree_base: /wt/ui
 
-[[projects.setup]]
-name = "install"
-run = "pnpm i"
-
-[[projects]]
-path = "/repos/app/packages/ui"
-worktree_base = "/wt/ui"
-
-[[projects]]
-path = "/repos/other"
+  - path: /repos/other
 `
 
 func load(t *testing.T) *Config {
 	t.Helper()
 	dir := t.TempDir()
-	p := filepath.Join(dir, "config.toml")
+	p := filepath.Join(dir, "config.yaml")
 	if err := os.WriteFile(p, []byte(sample), 0o644); err != nil {
 		t.Fatal(err)
 	}

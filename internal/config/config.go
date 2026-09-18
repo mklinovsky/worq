@@ -1,8 +1,8 @@
 // Package config loads and resolves worq configuration.
 //
-// Model mirrors gira: a single central file with [defaults] and a list of
-// [[projects]] matched against the current working directory. Longest match
-// wins. Precedence: CLI flags > project > defaults > built-in.
+// A single central file holds `defaults` and a list of `projects` matched
+// against the current working directory. Longest match wins.
+// Precedence: CLI flags > project > defaults > built-in.
 package config
 
 import (
@@ -11,17 +11,17 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/BurntSushi/toml"
+	"gopkg.in/yaml.v3"
 )
 
 // Step is a single post-create setup action. Exactly one of Copy/Run should be
 // set; steps run in the order they appear in the config.
 type Step struct {
-	Name     string   `toml:"name"`
-	Copy     []string `toml:"copy"`
-	Run      string   `toml:"run"`
-	Dir      string   `toml:"dir"`
-	Optional bool     `toml:"optional"`
+	Name     string   `yaml:"name,omitempty"`
+	Copy     []string `yaml:"copy,omitempty"`
+	Run      string   `yaml:"run,omitempty"`
+	Dir      string   `yaml:"dir,omitempty"`
+	Optional bool     `yaml:"optional,omitempty"`
 }
 
 func (s Step) Label() string {
@@ -39,26 +39,26 @@ func (s Step) Label() string {
 
 // Defaults applies to every project unless overridden.
 type Defaults struct {
-	WorktreeBase string `toml:"worktree_base"`
-	BaseBranch   string `toml:"base_branch"`
-	BranchPrefix string `toml:"branch_prefix"`
-	Setup        []Step `toml:"setup"`
+	WorktreeBase string `yaml:"worktree_base,omitempty"`
+	BaseBranch   string `yaml:"base_branch,omitempty"`
+	BranchPrefix string `yaml:"branch_prefix,omitempty"`
+	Setup        []Step `yaml:"setup,omitempty"`
 }
 
 // Project is one repository entry.
 type Project struct {
-	Name         string `toml:"name"`
-	Path         string `toml:"path"`
-	WorktreeBase string `toml:"worktree_base"`
-	BaseBranch   string `toml:"base_branch"`
-	BranchPrefix string `toml:"branch_prefix"`
-	JiraKey      string `toml:"jira_key"`
-	Setup        []Step `toml:"setup"`
+	Name         string `yaml:"name,omitempty"`
+	Path         string `yaml:"path,omitempty"`
+	WorktreeBase string `yaml:"worktree_base,omitempty"`
+	BaseBranch   string `yaml:"base_branch,omitempty"`
+	BranchPrefix string `yaml:"branch_prefix,omitempty"`
+	JiraKey      string `yaml:"jira_key,omitempty"`
+	Setup        []Step `yaml:"setup,omitempty"`
 }
 
 type Config struct {
-	Defaults Defaults  `toml:"defaults"`
-	Projects []Project `toml:"projects"`
+	Defaults Defaults  `yaml:"defaults,omitempty"`
+	Projects []Project `yaml:"projects,omitempty"`
 }
 
 // Resolved is the effective config for one repository.
@@ -70,20 +70,12 @@ type Resolved struct {
 	BranchPrefix string
 	JiraKey      string
 	Setup        []Step
-	Matched      bool // true when a [[projects]] entry matched
+	Matched      bool // true when a projects entry matched
 }
 
-// Path returns the config file location: $WORQ_CONFIG, else
-// $XDG_CONFIG_HOME/worq/config.toml, else ~/.config/worq/config.toml.
 func Path() string {
-	if p := os.Getenv("WORQ_CONFIG"); p != "" {
-		return Expand(p)
-	}
-	if x := os.Getenv("XDG_CONFIG_HOME"); x != "" {
-		return filepath.Join(x, "worq", "config.toml")
-	}
 	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".config", "worq", "config.toml")
+	return filepath.Join(home, ".worq", "config.yaml")
 }
 
 // Expand resolves a leading ~ and makes the path absolute where possible.
@@ -115,7 +107,7 @@ func LoadFrom(path string) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := toml.Unmarshal(b, cfg); err != nil {
+	if err := yaml.Unmarshal(b, cfg); err != nil {
 		return nil, fmt.Errorf("%s: %w", path, err)
 	}
 	return cfg, nil
@@ -165,7 +157,7 @@ func (c *Config) Resolve(root, cwd string) Resolved {
 	return r
 }
 
-// match picks the project entry with the longest path that contains root or
+// match picks the projects entry with the longest path that contains root or
 // cwd. Checking cwd too means commands still resolve the right project when
 // run from a worktree kept outside the repository.
 func (c *Config) match(root, cwd string) *Project {

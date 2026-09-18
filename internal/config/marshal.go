@@ -1,16 +1,17 @@
 package config
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 )
 
 const header = `# worq configuration
 #
-# Precedence: CLI flags > matched [[projects]] entry > [defaults] > built-in.
+# Precedence: CLI flags > matched projects entry > defaults > built-in.
 # Paths accept ~, $VARS and the placeholders {root}, {parent} and {name}.
 `
 
@@ -54,43 +55,16 @@ func (c *Config) Find(path string) *Project {
 	return nil
 }
 
-// Marshal renders the config as TOML, emitting only the fields that are set.
+// Marshal renders the config as YAML, emitting only the fields that are set.
 // Hand-written comments in an existing file are not preserved: the file is
 // re-serialised from the parsed config.
 func (c *Config) Marshal() string {
-	var b strings.Builder
-	b.WriteString(header)
-
-	b.WriteString("\n[defaults]\n")
-	d := c.Defaults
-	writeStr(&b, "worktree_base", d.WorktreeBase)
-	writeStr(&b, "base_branch", d.BaseBranch)
-	writeStr(&b, "branch_prefix", d.BranchPrefix)
-	writeSteps(&b, "defaults", d.Setup)
-
-	for _, p := range c.Projects {
-		b.WriteString("\n[[projects]]\n")
-		writeStr(&b, "name", p.Name)
-		writeStr(&b, "path", p.Path)
-		writeStr(&b, "worktree_base", p.WorktreeBase)
-		writeStr(&b, "base_branch", p.BaseBranch)
-		writeStr(&b, "jira_key", p.JiraKey)
-		writeStr(&b, "branch_prefix", p.BranchPrefix)
-		writeSteps(&b, "projects", p.Setup)
-	}
-	return b.String()
+	return header + "\n" + encode(c)
 }
 
-// MarshalProject renders a single [[projects]] entry, for previews.
+// MarshalProject renders a single projects entry, for previews.
 func MarshalProject(p Project) string {
-	c := &Config{Projects: []Project{p}}
-	out := c.Marshal()
-	// The header comment mentions [[projects]] too, so match the real table.
-	i := strings.Index(out, "\n[[projects]]\n")
-	if i < 0 {
-		return out
-	}
-	return strings.TrimLeft(out[i:], "\n")
+	return encode([]Project{p})
 }
 
 // Save writes the config, creating the directory if needed.
@@ -101,37 +75,14 @@ func (c *Config) Save(path string) error {
 	return os.WriteFile(path, []byte(c.Marshal()), 0o644)
 }
 
-func writeSteps(b *strings.Builder, owner string, steps []Step) {
-	for _, s := range steps {
-		fmt.Fprintf(b, "\n[[%s.setup]]\n", owner)
-		writeStr(b, "name", s.Name)
-		writeList(b, "copy", s.Copy)
-		writeStr(b, "run", s.Run)
-		writeStr(b, "dir", s.Dir)
-		if s.Optional {
-			b.WriteString("optional = true\n")
-		}
+func encode(v any) string {
+	var b strings.Builder
+	enc := yaml.NewEncoder(&b)
+	enc.SetIndent(2)
+	// Every value here comes from our own structs, which always encode.
+	if err := enc.Encode(v); err != nil {
+		return ""
 	}
+	enc.Close()
+	return b.String()
 }
-
-func writeStr(b *strings.Builder, key, val string) {
-	if val == "" {
-		return
-	}
-	fmt.Fprintf(b, "%s = %s\n", key, quote(val))
-}
-
-func writeList(b *strings.Builder, key string, vals []string) {
-	if len(vals) == 0 {
-		return
-	}
-	parts := make([]string, 0, len(vals))
-	for _, v := range vals {
-		parts = append(parts, quote(v))
-	}
-	fmt.Fprintf(b, "%s = [%s]\n", key, strings.Join(parts, ", "))
-}
-
-var quoter = strings.NewReplacer(`\`, `\\`, `"`, `\"`, "\n", `\n`, "\t", `\t`, "\r", `\r`)
-
-func quote(s string) string { return `"` + quoter.Replace(s) + `"` }
