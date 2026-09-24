@@ -18,7 +18,11 @@ func run(t *testing.T, dir string, args ...string) {
 
 func repo(t *testing.T) string {
 	t.Helper()
-	dir := filepath.Join(t.TempDir(), "frontend")
+	tmp, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := filepath.Join(tmp, "frontend")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
 	}

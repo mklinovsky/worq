@@ -166,7 +166,7 @@ func AddWorktree(dir, path, branch, base string) error {
 	if BranchExists(dir, branch) {
 		args = append(args, path, branch)
 	} else {
-		args = append(args, "-b", branch, path, base)
+		args = append(args, "--no-track", "-b", branch, path, base)
 	}
 	_, err := run(dir, args...)
 	return err
