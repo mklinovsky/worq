@@ -6,8 +6,10 @@ key, copies your env files, runs your setup commands and prints the path.
 ## Install
 
 ```bash
-make install   # builds to ~/.local/bin/worq
+go install github.com/mklinovsky/worq@latest   # needs Go 1.27+
 ```
+
+Or from a clone: `make install` builds to `~/.local/bin/worq`.
 
 ## Usage
 
@@ -16,7 +18,7 @@ worq init                            # register the current repo
 worq new PROJ-1234 fix login         # create proj-1234-fix-login, print its path
 worq new 1234 fix login              # same, when jira_key is set
 worq new --track PROJ-7926-dark-mode # check out an existing origin branch
-worq ls                              # interactive browser
+worq ls                              # worktree browser (terminal UI)
 worq ls --plain                      # table; --paths prints paths only
 worq path 1234                       # path by key, branch or directory name
 worq setup                           # re-run setup steps in this worktree
@@ -33,10 +35,14 @@ your own tools:
 
 ```bash
 tmux new-window -c "$(worq new PROJ-1234 fix login)"
-tmux new-window -c "$(worq ls)"     # browser as a picker
+tmux new-window -c "$(worq ls)"     # worktree browser as a picker
 ```
 
-## Browser
+## Worktree browser
+
+`worq ls` opens the worktree browser: an interactive list of the repo's
+worktrees in your terminal, not a web browser. Pick one to print its path, or
+create, set up and remove worktrees from it.
 
 ```
 enter  print path and exit     n  new worktree

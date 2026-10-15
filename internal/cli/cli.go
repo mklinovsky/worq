@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"runtime/debug"
 	"sort"
 	"strings"
 
@@ -13,6 +14,18 @@ import (
 
 // Version is set at build time: -ldflags "-X .../internal/cli.Version=1.2.3".
 var Version = "dev"
+
+// version falls back to the module version Go records for `go install`, which
+// does not pass -ldflags.
+func version() string {
+	if Version != "dev" {
+		return Version
+	}
+	if info, ok := debug.ReadBuildInfo(); ok && info.Main.Version != "" && info.Main.Version != "(devel)" {
+		return info.Main.Version
+	}
+	return Version
+}
 
 type command struct {
 	name    string
@@ -36,7 +49,7 @@ func init() {
 	register("config", "show the resolved config for this repo", cmdConfig)
 	register("init", "register this repo (interactive form)", cmdInit)
 	register("version", "print the version", func([]string) error {
-		fmt.Println(sTitle.Render("worq") + " " + Version)
+		fmt.Println(sTitle.Render("worq") + " " + version())
 		return nil
 	})
 }
@@ -52,7 +65,7 @@ func Main(argv []string) int {
 		usage()
 		return 0
 	case "-v", "--version":
-		fmt.Println(sTitle.Render("worq") + " " + Version)
+		fmt.Println(sTitle.Render("worq") + " " + version())
 		return 0
 	}
 	for _, c := range commands {
