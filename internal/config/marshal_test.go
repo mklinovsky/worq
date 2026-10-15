@@ -111,3 +111,26 @@ func TestMarshalProjectSkipsHeaderComment(t *testing.T) {
 		t.Fatalf("preview leaked the header comment:\n%s", out)
 	}
 }
+
+func TestEmptySetupOverrideRoundTrip(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "config.yaml")
+	data := "defaults:\n  setup:\n    - run: echo default\nprojects:\n  - path: /empty\n    setup: []\n  - path: /inherited\n"
+	if err := os.WriteFile(p, []byte(data), 0600); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 2; i++ {
+		c, err := LoadFrom(p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := c.Resolve("/empty", "/empty").Setup; len(got) != 0 {
+			t.Fatalf("empty override: %+v", got)
+		}
+		if got := c.Resolve("/inherited", "/inherited").Setup; len(got) != 1 {
+			t.Fatalf("inheritance: %+v", got)
+		}
+		if err := c.Save(p); err != nil {
+			t.Fatal(err)
+		}
+	}
+}

@@ -28,7 +28,7 @@ func register(name, summary string, run func([]string) error) {
 
 func init() {
 	register("new", "create a worktree and run setup", cmdNew)
-	register("ls", "browse worktrees (--plain, --json, --paths for text)", cmdList)
+	register("ls", "browse worktrees (--plain, --paths for text)", cmdList)
 	register("path", "print the path of a worktree", cmdPath)
 	register("setup", "re-run setup steps in a worktree", cmdSetup)
 	register("rm", "remove a worktree", cmdRemove)

@@ -105,6 +105,8 @@ func (d delegate) status(e worktree.Entry) []string {
 	}
 	switch {
 	case e.Branch == "":
+	case e.Ahead < 0:
+		out = append(out, warnStyle.Render("merge status unknown"))
 	case e.Ahead == 0:
 		out = append(out, subtleStyle.Render("merged"))
 	default:

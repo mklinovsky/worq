@@ -86,3 +86,18 @@ func encode(v any) string {
 	enc.Close()
 	return b.String()
 }
+
+// MarshalYAML preserves an explicit empty setup list, which disables defaults.
+func (p Project) MarshalYAML() (any, error) {
+	type plainProject Project
+	var node yaml.Node
+	if err := node.Encode(plainProject(p)); err != nil {
+		return nil, err
+	}
+	if p.Setup != nil && len(p.Setup) == 0 {
+		node.Content = append(node.Content,
+			&yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: "setup"},
+			&yaml.Node{Kind: yaml.SequenceNode, Tag: "!!seq"})
+	}
+	return &node, nil
+}

@@ -41,7 +41,7 @@ type Entry struct {
 	git.Worktree
 	Age     string // relative age of the branch tip
 	Dirty   bool
-	Ahead   int
+	Ahead   int // -1 when the merge status is unknown
 	Current bool
 	Loaded  bool // Dirty and Ahead have been filled in
 }
@@ -68,6 +68,7 @@ func (s *Service) List(cwd string) ([]Entry, error) {
 // and how many commits the branch holds that the base branch does not. Each
 // call is independent, so they can run concurrently.
 func (s *Service) Fill(e Entry) Entry {
+	e.Ahead = -1
 	e.Dirty = git.Modified(e.Path)
 	if e.Branch != "" && !e.Main {
 		if n, err := git.Ahead(s.Cfg.Root, e.Branch, s.Base()); err == nil {

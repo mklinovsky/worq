@@ -1,12 +1,10 @@
 package cli
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
-	"text/tabwriter"
 
 	"github.com/mklinovsky/worq/internal/config"
 	"github.com/mklinovsky/worq/internal/git"
@@ -76,19 +74,8 @@ func cmdNew(args []string) error {
 	return err
 }
 
-type jsonEntry struct {
-	Name    string `json:"name"`
-	Path    string `json:"path"`
-	Branch  string `json:"branch"`
-	Main    bool   `json:"main"`
-	Dirty   bool   `json:"dirty"`
-	Ahead   int    `json:"ahead"`
-	Current bool   `json:"current"`
-}
-
 func cmdList(args []string) error {
 	fs := newFlagSet("ls")
-	asJSON := fs.Bool("json", false, "print JSON instead of opening the browser")
 	paths := fs.Bool("paths", false, "print paths only")
 	plain := fs.Bool("plain", false, "print a table instead of opening the browser")
 	all := fs.Bool("all", false, "include the repository checkout itself")
@@ -101,7 +88,7 @@ func cmdList(args []string) error {
 	}
 
 	// Without a flag asking for text, ls is the browser.
-	if !*asJSON && !*paths && !*plain {
+	if !*paths && !*plain {
 		path, err := tui.Run(svc, cwd)
 		if err != nil {
 			return err
@@ -140,18 +127,7 @@ func cmdList(args []string) error {
 		entries = kept
 	}
 
-	if *asJSON {
-		out := make([]jsonEntry, 0, len(entries))
-		for _, e := range entries {
-			out = append(out, jsonEntry{e.Name(), e.Path, e.Branch, e.Main, e.Dirty, e.Ahead, e.Current})
-		}
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		return enc.Encode(out)
-	}
-
-	w := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
-	fmt.Fprintln(w, sDim.Render("\tNAME\tBRANCH\tSTATE"))
+	rows := [][]string{{"", sDim.Render("NAME"), sDim.Render("BRANCH"), sDim.Render("STATE")}}
 	for _, e := range entries {
 		marker := " "
 		if e.Current {
@@ -171,7 +147,9 @@ func cmdList(args []string) error {
 			state = append(state, sErr.Render("prunable"))
 		}
 		if !e.Main && e.Branch != "" {
-			if e.Ahead == 0 {
+			if e.Ahead < 0 {
+				state = append(state, sFlag.Render("merge status unknown"))
+			} else if e.Ahead == 0 {
 				state = append(state, sDim.Render("merged"))
 			} else {
 				state = append(state, sOK.Render(fmt.Sprintf("+%d", e.Ahead)))
@@ -181,9 +159,10 @@ func cmdList(args []string) error {
 		if branch == "" {
 			branch = "(detached)"
 		}
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", marker, e.Name(), branch, strings.Join(state, " "))
+		rows = append(rows, []string{marker, e.Name(), branch, strings.Join(state, " ")})
 	}
-	return w.Flush()
+	table(os.Stdout, rows)
+	return nil
 }
 
 func cmdPath(args []string) error {
@@ -212,7 +191,10 @@ func cmdSetup(args []string) error {
 	if err != nil {
 		return err
 	}
-	target := cwd
+	target, err := git.Root(cwd)
+	if err != nil {
+		return err
+	}
 	if fs.NArg() > 0 {
 		e, err := svc.Find(fs.Arg(0))
 		if err != nil {

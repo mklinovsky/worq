@@ -155,7 +155,7 @@ func NewInit(cwd string) (InitModel, error) {
 		values[fBaseBranch] = or(p.BaseBranch, det.BaseBranch)
 		values[fJiraKey] = or(p.JiraKey, det.JiraKey)
 		values[fBranchPrefix] = p.BranchPrefix
-		if len(p.Setup) > 0 {
+		if p.Setup != nil {
 			m.steps = p.Setup
 		}
 	}
@@ -428,6 +428,10 @@ func (m InitModel) commitStep() InitModel {
 
 // project builds the entry from the current form state.
 func (m InitModel) project() config.Project {
+	steps := m.steps
+	if steps == nil {
+		steps = []config.Step{}
+	}
 	p := config.Project{
 		Name:         strings.TrimSpace(m.inputs[fName].Value()),
 		Path:         strings.TrimSpace(m.inputs[fPath].Value()),
@@ -435,7 +439,7 @@ func (m InitModel) project() config.Project {
 		BaseBranch:   strings.TrimSpace(m.inputs[fBaseBranch].Value()),
 		JiraKey:      strings.TrimSpace(m.inputs[fJiraKey].Value()),
 		BranchPrefix: strings.TrimSpace(m.inputs[fBranchPrefix].Value()),
-		Setup:        m.steps,
+		Setup:        steps,
 	}
 	return p
 }

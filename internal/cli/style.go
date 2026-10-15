@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"fmt"
+	"io"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -34,4 +36,28 @@ func pad(s string, width int) string {
 		return s + strings.Repeat(" ", n)
 	}
 	return s
+}
+
+// table prints rows in columns two spaces apart, sized by visible width.
+func table(w io.Writer, rows [][]string) {
+	var widths []int
+	for _, row := range rows {
+		for i, cell := range row {
+			if i == len(widths) {
+				widths = append(widths, 0)
+			}
+			widths[i] = max(widths[i], lipgloss.Width(cell))
+		}
+	}
+	for _, row := range rows {
+		var b strings.Builder
+		for i, cell := range row {
+			if i == len(row)-1 {
+				b.WriteString(cell)
+			} else {
+				b.WriteString(pad(cell, widths[i]+2))
+			}
+		}
+		fmt.Fprintln(w, b.String())
+	}
 }

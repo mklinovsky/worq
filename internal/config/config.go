@@ -142,7 +142,7 @@ func (c *Config) Resolve(root, cwd string) Resolved {
 		if p.JiraKey != "" {
 			r.JiraKey = p.JiraKey
 		}
-		if len(p.Setup) > 0 {
+		if p.Setup != nil {
 			r.Setup = p.Setup
 		}
 	}

@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"sync"
 
 	"github.com/mklinovsky/worq/internal/config"
@@ -30,8 +29,9 @@ type Reporter func(Event)
 
 // Result records the outcome of one step.
 type Result struct {
-	Label string
-	Err   error
+	Label    string
+	Err      error
+	Optional bool
 }
 
 // Run executes every step against a freshly created worktree. src is the main
@@ -40,24 +40,20 @@ func Run(steps []config.Step, src, dst string, report Reporter) []Result {
 	results := make([]Result, 0, len(steps))
 	for i, s := range steps {
 		label := s.Label()
-		// A step with nothing to do is a config mistake — usually a key that no
-		// longer exists. Say so instead of reporting a silent success.
-		if len(s.Copy) == 0 && s.Run == "" {
-			err := errors.New("step has no copy or run — check " + label + " in your config")
-			emit(report, Event{Index: i, Total: len(steps), Label: label, Done: true, Err: err})
-			results = append(results, Result{Label: label, Err: fmt.Errorf("%w (optional)", err)})
-			continue
-		}
 		emit(report, Event{Index: i, Total: len(steps), Label: label})
-
-		err := runStep(s, src, dst, func(line string) {
-			emit(report, Event{Index: i, Total: len(steps), Label: label, Line: line})
-		})
+		var err error
+		if len(s.Copy) == 0 && s.Run == "" {
+			err = errors.New("step has no copy or run — check " + label + " in your config")
+		} else {
+			err = runStep(s, src, dst, func(line string) {
+				emit(report, Event{Index: i, Total: len(steps), Label: label, Line: line})
+			})
+		}
 		if err != nil && s.Optional {
 			err = fmt.Errorf("%w (optional)", err)
 		}
 		emit(report, Event{Index: i, Total: len(steps), Label: label, Done: true, Err: err})
-		results = append(results, Result{Label: label, Err: err})
+		results = append(results, Result{Label: label, Err: err, Optional: s.Optional})
 		if err != nil && !s.Optional {
 			break
 		}
@@ -68,7 +64,7 @@ func Run(steps []config.Step, src, dst string, report Reporter) []Result {
 // Failed returns the first non-optional failure, if any.
 func Failed(results []Result) error {
 	for _, r := range results {
-		if r.Err != nil && !strings.HasSuffix(r.Err.Error(), "(optional)") {
+		if r.Err != nil && !r.Optional {
 			return r.Err
 		}
 	}
